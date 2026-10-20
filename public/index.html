@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LifeFlow / HemaPath Control Center</title>
+    <style>
+        :root { --primary: #d9534f; --dark: #333; --light: #f4f7f6; --white: #fff; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--light); margin: 0; display: flex; height: 100vh; color: var(--dark); }
+        
+        sidebar { width: 250px; background: var(--dark); color: var(--white); display: flex; flex-direction: column; padding: 20px; }
+        sidebar h2 { font-size: 20px; margin-bottom: 30px; color: var(--primary); }
+        sidebar a { color: #aaa; text-decoration: none; padding: 12px 15px; border-radius: 4px; margin-bottom: 8px; font-weight: bold; transition: 0.2s; cursor: pointer; }
+        sidebar a:hover, sidebar a.active { background: var(--primary); color: var(--white); }
+
+        main { flex: 1; padding: 30px; overflow-y: auto; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        h1 { margin: 0; font-size: 26px; }
+        
+        .view { display: none; }
+        .view.active { display: block; }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+        .card { background: var(--white); padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .card h3 { margin-top: 0; color: var(--primary); border-bottom: 2px solid var(--light); padding-bottom: 10px; }
+        
+        label { display: block; margin-top: 12px; font-size: 13px; font-weight: bold; color: #555; }
+        input, select { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { background: var(--primary); color: var(--white); border: none; padding: 12px; margin-top: 18px; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s; }
+        button:hover { opacity: 0.9; }
+        
+        pre { background: #1e1e1e; color: #dcdcdc; padding: 12px; border-radius: 4px; font-size: 12px; overflow-x: auto; margin-top: 15px; }
+        
+        table { width: 100%; border-collapse: collapse; background: var(--white); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; font-size: 14px; }
+        th { background: var(--primary); color: var(--white); }
+    </style>
+</head>
+<body>
+
+    <sidebar>
+        <h2>HemaPath IoT</h2>
+        <a onclick="switchView('overview', this)" class="active">Overview & Actions</a>
+        <a onclick="switchView('inventory', this)">Live Storage Units</a>
+        <a onclick="switchView('requests', this)">Hospital Requests</a>
+        <a onclick="switchView('transfers', this)">Active Transfers</a>
+    </sidebar>
+
+    <main>
+        <!-- VIEW 1: OVERVIEW -->
+        <div id="overview" class="view active">
+            <header><h1>System Control & Simulation Hub</h1></header>
+            <div class="grid">
+                <div class="card">
+                    <h3>Simulate IoT Sensor Telemetry</h3>
+                    <label>Unit ID:</label><input type="text" id="iot_unit" value="U501">
+                    <label>Temperature (°C):</label><input type="number" step="0.1" id="iot_temp" value="4.2">
+                    <label>Humidity (%):</label><input type="number" step="0.1" id="iot_hum" value="65.0">
+                    <label>Weight (g):</label><input type="number" id="iot_weight" value="450">
+                    <button onclick="sendTelemetry()">Send Telemetry Packet</button>
+                    <pre id="iot_response">Awaiting action...</pre>
+                </div>
+
+                <div class="card">
+                    <h3>New Hospital Blood Request</h3>
+                    <label>Hospital Name:</label><input type="text" id="req_hospital" value="City General Hospital">
+                    <label>Blood Group:</label>
+                    <select id="req_group"><option>O+</option><option>O-</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option></select>
+                    <label>Units Requested:</label><input type="number" id="req_units" value="3">
+                    <label>Urgency:</label>
+                    <select id="req_urgency"><option>Normal</option><option>Urgent</option><option>Critical</option></select>
+                    <button onclick="submitRequest()">Submit Blood Request</button>
+                    <pre id="req_response">Awaiting action...</pre>
+                </div>
+
+                <div class="card">
+                    <h3>Log Blood Transfer</h3>
+                    <label>Unit ID:</label><input type="text" id="trf_unit" value="U501">
+                    <label>Source Facility:</label><input type="text" id="trf_source" value="Main Blood Bank">
+                    <label>Destination Facility:</label><input type="text" id="trf_dest" value="City General Hospital">
+                    <button onclick="submitTransfer()">Dispatch Shipment</button>
+                    <pre id="trf_response">Awaiting action...</pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 2: LIVE INVENTORY -->
+        <div id="inventory" class="view">
+            <header><h1>Blood Storage Inventory Units</h1><button style="width:auto; margin:0;" onclick="loadInventory()">Refresh Data</button></header>
+            <table>
+                <thead><tr><th>Unit ID</th><th>Temperature</th><th>Humidity</th><th>Weight</th><th>Status</th><th>Last Updated</th></tr></thead>
+                <tbody id="inventory_table"><tr><td colspan="6">Loading data...</td></tr></tbody>
+            </table>
+        </div>
+
+        <!-- VIEW 3: HOSPITAL REQUESTS -->
+        <div id="requests" class="view">
+            <header><h1>Hospital Blood Requests</h1><button style="width:auto; margin:0;" onclick="loadRequests()">Refresh Data</button></header>
+            <table>
+                <thead><tr><th>Request ID</th><th>Hospital</th><th>Blood Group</th><th>Units</th><th>Urgency</th><th>Status</th></tr></thead>
+                <tbody id="requests_table"><tr><td colspan="6">Loading data...</td></tr></tbody>
+            </table>
+        </div>
+
+        <!-- VIEW 4: TRANSFERS -->
+        <div id="transfers" class="view">
+            <header><h1>Supply Chain Transfers</h1><button style="width:auto; margin:0;" onclick="loadTransfers()">Refresh Data</button></header>
+            <table>
+                <thead><tr><th>Transfer ID</th><th>Unit ID</th><th>Source</th><th>Destination</th><th>Status</th><th>Dispatched At</th></tr></thead>
+                <tbody id="transfers_table"><tr><td colspan="6">Loading data...</td></tr></tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        function switchView(viewId, element) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('sidebar a').forEach(a => a.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+            element.classList.add('active');
+
+            if (viewId === 'inventory') loadInventory();
+            if (viewId === 'requests') loadRequests();
+            if (viewId === 'transfers') loadTransfers();
+        }
+
+        async function sendTelemetry() {
+            const data = {
+                unit_id: document.getElementById('iot_unit').value,
+                temperature: parseFloat(document.getElementById('iot_temp').value),
+                humidity: parseFloat(document.getElementById('iot_hum').value),
+                weight_grams: parseInt(document.getElementById('iot_weight').value),
+                status: "available"
+            };
+            const res = await fetch('/api/iot/update-storage', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            document.getElementById('iot_response').innerText = JSON.stringify(await res.json(), null, 2);
+        }
+
+        async function submitRequest() {
+            const data = {
+                hospital_name: document.getElementById('req_hospital').value,
+                blood_group: document.getElementById('req_group').value,
+                units_requested: parseInt(document.getElementById('req_units').value),
+                urgency: document.getElementById('req_urgency').value
+            };
+            const res = await fetch('/api/requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            document.getElementById('req_response').innerText = JSON.stringify(await res.json(), null, 2);
+        }
+
+        async function submitTransfer() {
+            const data = {
+                unit_id: document.getElementById('trf_unit').value,
+                source_facility: document.getElementById('trf_source').value,
+                destination_facility: document.getElementById('trf_dest').value,
+                status: "In Transit"
+            };
+            const res = await fetch('/api/transfers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            document.getElementById('trf_response').innerText = JSON.stringify(await res.json(), null, 2);
+        }
+
+        async function loadInventory() {
+            const res = await fetch('/api/inventory');
+            const data = await res.json();
+            const tbody = document.getElementById('inventory_table');
+            tbody.innerHTML = data.length ? data.map(item => `
+                <tr>
+                    <td><strong>${item.unit_id || item._id}</strong></td>
+                    <td>${item.temperature ?? 'N/A'}°C</td>
+                    <td>${item.humidity ?? 'N/A'}%</td>
+                    <td>${item.weight_grams ?? 'N/A'}g</td>
+                    <td>${item.status || 'Active'}</td>
+                    <td>${item.last_updated ? new Date(item.last_updated).toLocaleString() : 'N/A'}</td>
+                </tr>
+            `).join('') : '<tr><td colspan="6">No storage units found.</td></tr>';
+        }
+
+        async function loadRequests() {
+            const res = await fetch('/api/requests');
+            const data = await res.json();
+            const tbody = document.getElementById('requests_table');
+            tbody.innerHTML = data.length ? data.map(req => `
+                <tr>
+                    <td>${req.request_id}</td>
+                    <td>${req.hospital_name}</td>
+                    <td><strong>\${req.blood_group}</strong></td>
+                    <td>${req.units_requested}</td>
+                    <td>${req.urgency}</td>
+                    <td>${req.status}</td>
+                </tr>
+            `).join('') : '<tr><td colspan="6">No hospital requests found.</td></tr>';
+        }
+
+        async function loadTransfers() {
+            const res = await fetch('/api/transfers');
+            const data = await res.json();
+            const tbody = document.getElementById('transfers_table');
+            tbody.innerHTML = data.length ? data.map(trf => `
+                <tr>
+                    <td>${trf.transfer_id}</td>
+                    <td>${trf.unit_id}</td>
+                    <td>${trf.source_facility}</td>
+                    <td>${trf.destination_facility}</td>
+                    <td>${trf.status}</td>
+                    <td>${trf.dispatched_at ? new Date(trf.dispatched_at).toLocaleString() : 'N/A'}</td>
+                </tr>
+            `).join('') : '<tr><td colspan="6">No transfers logged.</td></tr>';
+        }
+    </script>
+</body>
+</html>
