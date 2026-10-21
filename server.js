@@ -5,7 +5,7 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-const uri = "mongodb+srv://nikshasingh24_db_user:LifeFlow2026@hemapath-cluster.sbrdvcb.mongodb.net/?retryWrites=true&w=majority";
+const uri = "mongodb+srv://username:password@hemapath-cluster.sbrdvcb.mongodb.net/?retryWrites=true&w=majority";
 const client = new MongoClient(uri);
 
 async function startServer() {
