@@ -127,84 +127,70 @@
         async function sendTelemetry() {
             const data = {
                 unit_id: document.getElementById('iot_unit').value,
-                temperature: parseFloat(document.getElementById('iot_temp').value),
-                humidity: parseFloat(document.getElementById('iot_hum').value),
-                weight_grams: parseInt(document.getElementById('iot_weight').value),
-                status: "available"
+                temperature_celsius: parseFloat(document.getElementById('iot_temp').value),
+                humidity_percent: parseFloat(document.getElementById('iot_hum').value),
+                weight_grams: parseInt(document.getElementById('iot_weight').value)
             };
-            const res = await fetch('/api/iot/update-storage', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-            document.getElementById('iot_response').innerText = JSON.stringify(await res.json(), null, 2);
+            try {
+                const res = await fetch('/api/iot/update-storage', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(data) 
+                });
+                document.getElementById('iot_response').innerText = JSON.stringify(await res.json(), null, 2);
+            } catch (err) {
+                document.getElementById('iot_response').innerText = "Error: " + err.message;
+            }
         }
 
         async function submitRequest() {
             const data = {
+                request_id: "REQ-" + Date.now().toString().slice(-4),
                 hospital_name: document.getElementById('req_hospital').value,
-                blood_group: document.getElementById('req_group').value,
+                blood_type: document.getElementById('req_group').value,
                 units_requested: parseInt(document.getElementById('req_units').value),
-                urgency: document.getElementById('req_urgency').value
+                urgency: document.getElementById('req_urgency').value,
+                status: "PENDING"
             };
-            const res = await fetch('/api/requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-            document.getElementById('req_response').innerText = JSON.stringify(await res.json(), null, 2);
+            try {
+                const res = await fetch('/api/blood-requests', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(data) 
+                });
+                document.getElementById('req_response').innerText = JSON.stringify(await res.json(), null, 2);
+            } catch (err) {
+                document.getElementById('req_response').innerText = "Error: " + err.message;
+            }
         }
 
         async function submitTransfer() {
             const data = {
+                transfer_id: "TRF-" + Date.now().toString().slice(-4),
                 unit_id: document.getElementById('trf_unit').value,
-                source_facility: document.getElementById('trf_source').value,
-                destination_facility: document.getElementById('trf_dest').value,
-                status: "In Transit"
+                source_location: document.getElementById('trf_source').value,
+                destination_location: document.getElementById('trf_dest').value,
+                status: "IN_TRANSIT"
             };
-            const res = await fetch('/api/transfers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-            document.getElementById('trf_response').innerText = JSON.stringify(await res.json(), null, 2);
+            try {
+                const res = await fetch('/api/transfers', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(data) 
+                });
+                document.getElementById('trf_response').innerText = JSON.stringify(await res.json(), null, 2);
+            } catch (err) {
+                document.getElementById('trf_response').innerText = "Error: " + err.message;
+            }
         }
 
         async function loadInventory() {
-            const res = await fetch('/api/inventory');
-            const data = await res.json();
-            const tbody = document.getElementById('inventory_table');
-            tbody.innerHTML = data.length ? data.map(item => `
-                <tr>
-                    <td><strong>${item.unit_id || item._id}</strong></td>
-                    <td>${item.temperature ?? 'N/A'}°C</td>
-                    <td>${item.humidity ?? 'N/A'}%</td>
-                    <td>${item.weight_grams ?? 'N/A'}g</td>
-                    <td>${item.status || 'Active'}</td>
-                    <td>${item.last_updated ? new Date(item.last_updated).toLocaleString() : 'N/A'}</td>
-                </tr>
-            `).join('') : '<tr><td colspan="6">No storage units found.</td></tr>';
-        }
-
-        async function loadRequests() {
-            const res = await fetch('/api/requests');
-            const data = await res.json();
-            const tbody = document.getElementById('requests_table');
-            tbody.innerHTML = data.length ? data.map(req => `
-                <tr>
-                    <td>${req.request_id}</td>
-                    <td>${req.hospital_name}</td>
-                    <td><strong>\${req.blood_group}</strong></td>
-                    <td>${req.units_requested}</td>
-                    <td>${req.urgency}</td>
-                    <td>${req.status}</td>
-                </tr>
-            `).join('') : '<tr><td colspan="6">No hospital requests found.</td></tr>';
-        }
-
-        async function loadTransfers() {
-            const res = await fetch('/api/transfers');
-            const data = await res.json();
-            const tbody = document.getElementById('transfers_table');
-            tbody.innerHTML = data.length ? data.map(trf => `
-                <tr>
-                    <td>${trf.transfer_id}</td>
-                    <td>${trf.unit_id}</td>
-                    <td>${trf.source_facility}</td>
-                    <td>${trf.destination_facility}</td>
-                    <td>${trf.status}</td>
-                    <td>${trf.dispatched_at ? new Date(trf.dispatched_at).toLocaleString() : 'N/A'}</td>
-                </tr>
-            `).join('') : '<tr><td colspan="6">No transfers logged.</td></tr>';
-        }
-    </script>
-</body>
-</html>
+            try {
+                const res = await fetch('/api/inventory');
+                const data = await res.json();
+                const tbody = document.getElementById('inventory_table');
+                tbody.innerHTML = data.length ? data.map(item => `
+                    <tr>
+                        <td><strong>${item.unit_id || item._id}</strong></td>
+                        <td>${item.temperature_celsius !== undefined ? item.temperature_celsius + '°C' : (item.temperature !== undefined ? item.temperature + '°C' : 'N/A')}</td>
+                        <td>${item.humidity_percent !== undefined ? item.humidity_percent + '%' : (item.humidity !==
